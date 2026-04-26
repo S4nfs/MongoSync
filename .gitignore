@@ -1,0 +1,20 @@
+# dependencies
+/node_modules
+
+
+# misc
+.DS_Store
+*.pem
+.VSCodeCounter
+
+# debug
+npm-debug.log*
+
+# env files
+.env*
+
+data*
+mongo-keyfile*
+
+
+

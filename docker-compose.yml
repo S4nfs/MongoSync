@@ -1,0 +1,63 @@
+version: "3.8"
+
+services:
+  mongo1:
+    image: mongo:7
+    container_name: mongo1
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data1:/data/db
+      - ./mongo-keyfile:/etc/mongo-keyfile:ro
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+    command: [
+      "--replSet", "rs0",
+      "--bind_ip_all",
+      "--keyFile", "/etc/mongo-keyfile"
+    ]
+
+  mongo2:
+    image: mongo:7
+    container_name: mongo2
+    ports:
+      - "27018:27017"
+    volumes:
+      - ./data2:/data/db
+      - ./mongo-keyfile:/etc/mongo-keyfile:ro
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+    command: [
+      "--replSet", "rs0",
+      "--bind_ip_all",
+      "--keyFile", "/etc/mongo-keyfile"
+    ]
+
+  mongo3:
+    image: mongo:7
+    container_name: mongo3
+    ports:
+      - "27019:27017"
+    volumes:
+      - ./data3:/data/db
+      - ./mongo-keyfile:/etc/mongo-keyfile:ro
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+    command: [
+      "--replSet", "rs0",
+      "--bind_ip_all",
+      "--keyFile", "/etc/mongo-keyfile"
+    ]
+
+  sync:
+    build: .
+    container_name: mongo-sync
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    env_file:
+      - .env

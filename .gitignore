@@ -11,7 +11,7 @@
 npm-debug.log*
 
 # env files
-.env*
+.env
 
 data*
 mongo-keyfile*

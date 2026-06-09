@@ -1,5 +1,10 @@
 import { MongoClient } from 'mongodb'
 import fs from 'fs'
+import crypto from 'crypto'
+
+if (!globalThis.crypto) {
+  globalThis.crypto = crypto.webcrypto
+}
 
 // Load local .env if present
 if (fs.existsSync('.env')) {

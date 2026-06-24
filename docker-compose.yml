@@ -4,6 +4,7 @@ services:
   mongo1:
     image: mongo:7
     container_name: mongo1
+    restart: unless-stopped
     ports:
       - "27017:27017"
     volumes:
@@ -21,6 +22,7 @@ services:
   mongo2:
     image: mongo:7
     container_name: mongo2
+    restart: unless-stopped
     ports:
       - "27018:27017"
     volumes:
@@ -38,6 +40,7 @@ services:
   mongo3:
     image: mongo:7
     container_name: mongo3
+    restart: unless-stopped
     ports:
       - "27019:27017"
     volumes:
@@ -55,6 +58,7 @@ services:
   sync:
     build: .
     container_name: mongo-sync
+    restart: unless-stopped
     depends_on:
       - mongo1
       - mongo2

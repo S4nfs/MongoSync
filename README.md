@@ -64,16 +64,16 @@ docker compose up -d --build
 
 ### ⚙️ Step 4: Initialize the Replica Set
 
-Run this direct command on your host terminal to initialize the replica set (no need to log into the shell manually):
+Run this direct command on your host terminal to initialize the replica set (no need to log into the shell manually). This assigns a higher priority (`10`) to `mongo1` to ensure it is always elected as the writable `PRIMARY` (crucial for external apps connecting to `localhost:27017`):
 
 ```bash
 docker exec -it mongo1 mongosh -u mydb -p 'password' --authenticationDatabase admin --eval "
 rs.initiate({
   _id: 'rs0',
   members: [
-    { _id: 0, host: 'mongo1:27017' },
-    { _id: 1, host: 'mongo2:27017' },
-    { _id: 2, host: 'mongo3:27017' }
+    { _id: 0, host: 'mongo1:27017', priority: 10 },
+    { _id: 1, host: 'mongo2:27017', priority: 1 },
+    { _id: 2, host: 'mongo3:27017', priority: 1 }
   ]
 })
 "
@@ -115,17 +115,30 @@ docker exec -it mongo1 mongosh -u mydb -p 'password' --authenticationDatabase ad
 
 If this prints `0 seconds behind the primary` for both secondary nodes, your replicas are 100% in sync!
 
-### 💾 Step 7 (REQUIRED for existing data): One-Command Initial Database Sync
+### 💾 Step 7 (REQUIRED for existing data): Multi-Database & Collection Initial Sync
 
 > ⚠️ **IMPORTANT:** The default `mongo-sync` service listens to **new real-time changes** (Change Streams) from Atlas. It **does not** automatically copy pre-existing data that was already in Atlas before you started the sync.
 >
-> To copy all of your existing collections from Atlas to your local replica set, run this built-in utility script. It connects directly to your databases and mirrors every collection automatically with **one single command** (without requiring any tools like `mongodump` or `mongorestore` on your host!):
+> To copy existing databases/collections from Atlas to your local replica set, run our built-in interactive utility script. It features a fully interactive menu letting you select one or more databases and specific collections to replicate (without requiring any tools like `mongodump` or `mongorestore`!):
+
+#### Run inside Docker (Interactive Mode)
 
 ```bash
-docker compose exec sync npm run initial-sync
+docker exec -it mongo-sync npm run initial-sync
 ```
 
-_(By default, this will copy all collections for the database specified as `DB_NAME` in your `.env` file, clearing the local replica set's collections first so you have a perfectly matching state.)_
+#### Run locally from Host Machine
+
+```bash
+npm install
+node initial-sync.js
+```
+
+#### Features of the utility:
+
+- **Multi-Database Selection:** Shows all databases in Atlas and lets you select multiple databases to replicate (by number, name, or typing `all`).
+- **Specific Collection Filtering:** Lets you choose to fully replicate the whole database (all collections) or selectively prompt you database-by-database to sync specific collections (comma-separated).
+- **Plan Summary:** Generates a summary plan of exactly what will be deleted and replicated, and what will remain untouched before asking for confirmation.
 
 ```
 

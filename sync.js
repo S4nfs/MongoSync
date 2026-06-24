@@ -86,7 +86,7 @@ async function startSync() {
 
       const changeStream = atlasDB.watch([], options)
 
-      changeStream.on('change', async (change) => {
+      for await (const change of changeStream) {
         try {
           await retryOperation(() => applyChange(localDB, change))
 
@@ -102,20 +102,22 @@ async function startSync() {
             timestamp: new Date(),
           })
         }
-      })
-
-      changeStream.on('error', async (err) => {
-        console.error('⚠️ Change stream error:', err.message)
-
-        // force reconnect
-        await changeStream.close()
-        throw err
-      })
-
-      // keep process alive
-      await new Promise(() => {})
+      }
     } catch (err) {
       console.error('🔥 Sync crashed:', err.message)
+
+      // If the change stream resume token is invalid or no longer in the oplog, delete it so we can start fresh
+      if (err.code === 286 || (err.message && err.message.includes('resume point may no longer be in the oplog'))) {
+        console.warn('⚠️ Saved resume token is invalid or no longer exists in Atlas oplog. Clearing token and restarting from latest change...')
+        if (localClient) {
+          try {
+            const tokenCollection = localClient.db(DB_NAME).collection('sync_tokens')
+            await tokenCollection.deleteOne({ _id: 'global' })
+          } catch (tokenErr) {
+            console.error('❌ Failed to clear invalid resume token:', tokenErr.message)
+          }
+        }
+      }
 
       // wait before reconnect
       await new Promise((res) => setTimeout(res, 5000))

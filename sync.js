@@ -11,7 +11,78 @@ const DB_NAME = process.env.DB_NAME || 'test'
 const MAX_RETRIES = 5
 const INITIAL_DELAY = 100
 
-// 🔁 Exponential backoff retry
+// �️ Ensure MongoDB Replica Set is initialized automatically
+async function ensureReplicaSet() {
+  const MONGO_USER = process.env.MONGO_USER
+  const MONGO_PASS = process.env.MONGO_PASS
+
+  if (!MONGO_USER || !MONGO_PASS) {
+    console.warn('⚠️ MONGO_USER or MONGO_PASS not found in environment. Skipping auto replica set check.')
+    return
+  }
+
+  // Construct standalone connection to mongo1 with directConnection=true to query/administer this node specifically
+  const standaloneUri = `mongodb://${encodeURIComponent(MONGO_USER)}:${encodeURIComponent(MONGO_PASS)}@mongo1:27017/?authSource=admin&directConnection=true`
+
+  console.log('🔍 Checking if local MongoDB Replica Set is initialized...')
+
+  let initialized = false
+  let attempts = 0
+  const maxAttempts = 12 // 1 minute total (12 * 5s)
+
+  while (!initialized && attempts < maxAttempts) {
+    let client
+    try {
+      client = new MongoClient(standaloneUri, {
+        connectTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 5000,
+      })
+      await client.connect()
+      const adminDB = client.db('admin')
+
+      try {
+        const status = await adminDB.command({ replSetGetStatus: 1 })
+        console.log(`✅ Replica set already initialized: "${status.set}"`)
+        initialized = true
+      } catch (err) {
+        // Code 94 is NotYetInitialized
+        if (err.code === 94 || err.message?.includes('not initialized') || err.message?.includes('NotYetInitialized')) {
+          console.log('⚙️ Replica set not initialized yet. Initiating now...')
+          await adminDB.command({
+            replSetInitiate: {
+              _id: 'rs0',
+              members: [
+                { _id: 0, host: 'mongo1:27017', priority: 10 },
+                { _id: 1, host: 'mongo2:27017', priority: 1 },
+                { _id: 2, host: 'mongo3:27017', priority: 1 },
+              ],
+            },
+          })
+          console.log('🎉 Replica set successfully initiated! Waiting 10s for primary election...')
+          await new Promise((res) => setTimeout(res, 10000))
+          initialized = true
+        } else {
+          // Some other error, might be that it is still starting up or auth is not ready
+          throw err
+        }
+      }
+    } catch (err) {
+      attempts++
+      console.warn(`⏳ Local MongoDB node "mongo1" is not fully ready or replica set is transitioning. Attempt ${attempts}/${maxAttempts}. Error: ${err.message}`)
+      if (attempts >= maxAttempts) {
+        console.error('❌ Reached maximum attempts waiting for replica set initialization. Continuing anyway...')
+        break
+      }
+      await new Promise((res) => setTimeout(res, 5000))
+    } finally {
+      if (client) {
+        await client.close().catch(() => {})
+      }
+    }
+  }
+}
+
+// �🔁 Exponential backoff retry
 async function retryOperation(fn, retries = MAX_RETRIES) {
   let delay = INITIAL_DELAY
 
@@ -58,6 +129,13 @@ async function applyChange(localDB, change) {
 }
 
 async function startSync() {
+  // ⚙️ Automatically ensure local Replica Set is initialized before we begin syncing
+  try {
+    await ensureReplicaSet()
+  } catch (err) {
+    console.error('❌ Auto-replica set initialization failed:', err.message)
+  }
+
   while (true) {
     let atlasClient, localClient
 

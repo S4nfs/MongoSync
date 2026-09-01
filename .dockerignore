@@ -1,0 +1,28 @@
+# Local MongoDB replica set data volumes
+data1/
+data2/
+data3/
+data*/
+
+# Secrets & env
+.env
+mongo-keyfile*
+*.pem
+
+# Dependencies (installed inside the image)
+node_modules/
+npm-debug.log*
+
+# VCS & docs
+.git/
+.gitignore
+.github/
+README.md
+*.md
+.VSCodeCounter/
+.DS_Store
+
+# Docker files themselves
+Dockerfile
+.dockerignore
+docker-compose.yml

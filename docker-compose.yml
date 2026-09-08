@@ -53,6 +53,22 @@ services:
       "--keyFile", "/etc/mongo-keyfile"
     ]
 
+  # Automated mongodump backups on a fixed interval with rolling retention.
+  backup:
+    image: mongo:7
+    container_name: mongo-backup
+    restart: unless-stopped
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    volumes:
+      - ./backups:/backups
+      - ./backup.sh:/usr/local/bin/backup.sh:ro
+    env_file:
+      - .env
+    entrypoint: ["bash", "/usr/local/bin/backup.sh"]
+
   sync:
     build: .
     container_name: mongo-sync

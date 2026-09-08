@@ -11,7 +11,7 @@ const DB_NAME = process.env.DB_NAME || 'test'
 const MAX_RETRIES = 5
 const INITIAL_DELAY = 100
 
-// �️ Ensure MongoDB Replica Set is initialized automatically
+// 🛡️ Ensure MongoDB Replica Set is initialized automatically
 async function ensureReplicaSet() {
   const MONGO_USER = process.env.MONGO_USER
   const MONGO_PASS = process.env.MONGO_PASS
@@ -21,7 +21,7 @@ async function ensureReplicaSet() {
     return
   }
 
-  // Construct standalone connection to mongo1 with directConnection=true to query/administer this node specifically
+  // Connect straight to mongo1 so this node can be administered before any primary exists.
   const standaloneUri = `mongodb://${encodeURIComponent(MONGO_USER)}:${encodeURIComponent(MONGO_PASS)}@mongo1:27017/?authSource=admin&directConnection=true`
 
   console.log('🔍 Checking if local MongoDB Replica Set is initialized...')
